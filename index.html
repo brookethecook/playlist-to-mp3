@@ -1,0 +1,106 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playlist to MP3</title>
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;padding:30px 16px;background:#10141e;
+color:#fff;font-family:Arial,sans-serif
+}
+main{max-width:650px;margin:auto}
+header{text-align:center;padding:20px}
+.logo{font-size:48px}
+h1{font-size:30px;margin:8px}
+.muted{color:#aab3c3;font-size:13px;line-height:1.6}
+.card{
+background:#1c2331;border:1px solid #354052;
+border-radius:14px;padding:20px;margin:16px 0
+}
+input{
+width:100%;padding:14px;border-radius:8px;
+border:1px solid #46536a;background:#111824;
+color:white;font-size:15px;margin:7px 0
+}
+button{
+width:100%;padding:14px;border:0;border-radius:8px;
+background:#21bd83;color:#071b13;
+font-weight:bold;font-size:15px;margin-top:12px;
+cursor:pointer
+}
+.status{font-size:13px;color:#70dfa8;margin-top:12px}
+.track{padding:12px 0;border-bottom:1px solid #354052}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div class="logo">🎧</div>
+<h1>Playlist to MP3</h1>
+<p class="muted">Your playlists. Your music. Automatically organized.</p>
+</header>
+
+<div class="card">
+<h3>① Paste your playlist link</h3>
+<input id="playlist" placeholder="Spotify or YouTube playlist URL">
+<div id="source" class="status">Waiting for playlist...</div>
+<button onclick="detect()">IMPORT PLAYLIST</button>
+</div>
+
+<div class="card">
+<h3>② Your playlist</h3>
+<div id="summary" class="muted">No playlist imported yet.</div>
+<div id="tracks"></div>
+</div>
+
+<div class="card">
+<h3>③ Music matching</h3>
+<p class="muted">The app will search for matching recordings from authorized music sources.</p>
+<div id="matching" class="status">Waiting for playlist.</div>
+</div>
+
+<div class="card">
+<h3>④ Missing songs</h3>
+<p class="muted">Unavailable songs will be saved in a separate report.</p>
+<div id="missing" class="status">No missing songs yet.</div>
+</div>
+</main>
+
+<script>
+function detect(){
+const raw=document.getElementById("playlist").value.trim();
+const output=document.getElementById("source");
+const summary=document.getElementById("summary");
+
+try{
+const u=new URL(/^https?:\/\//i.test(raw)?raw:"https://"+raw);
+const host=u.hostname.toLowerCase().replace(/^www\./,"");
+
+let source="";
+
+if(host==="spotify.com"||host.endsWith(".spotify.com")||host==="spotify.link"){
+source="Spotify";
+}
+else if(host==="youtube.com"||host.endsWith(".youtube.com")||host==="youtu.be"){
+source="YouTube";
+}
+else{
+throw new Error("Unsupported link");
+}
+
+output.textContent="✓ "+source+" playlist detected";
+summary.textContent=source+" playlist recognized. Automatic track importing is the next connection to configure.";
+
+document.getElementById("matching").textContent="Waiting for playlist data.";
+document.getElementById("missing").textContent="No missing songs yet.";
+
+}catch(e){
+output.textContent="Please enter a valid Spotify or YouTube playlist URL.";
+}
+}
+</script>
+</body>
+</html>
