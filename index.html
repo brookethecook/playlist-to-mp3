@@ -70,36 +70,138 @@ cursor:pointer
 </main>
 
 <script>
-function detect(){
-const raw=document.getElementById("playlist").value.trim();
-const output=document.getElementById("source");
-const summary=document.getElementById("summary");
 
-try{
-const u=new URL(/^https?:\/\//i.test(raw)?raw:"https://"+raw);
-const host=u.hostname.toLowerCase().replace(/^www\./,"");
+const API_KEY = "PASTE_YOUR_YOUTUBE_API_KEY_HERE";
 
-let source="";
+async function detect() {
+  const raw = document.getElementById("playlist").value.trim();
+  const output = document.getElementById("source");
+  const summary = document.getElementById("summary");
+  const tracksElement = document.getElementById("tracks");
+  const matching = document.getElementById("matching");
 
-if(host==="spotify.com"||host.endsWith(".spotify.com")||host==="spotify.link"){
-source="Spotify";
-}
-else if(host==="youtube.com"||host.endsWith(".youtube.com")||host==="youtu.be"){
-source="YouTube";
-}
-else{
-throw new Error("Unsupported link");
-}
+  tracksElement.replaceChildren();
 
-output.textContent="✓ "+source+" playlist detected";
-summary.textContent=source+" playlist recognized. Automatic track importing is the next connection to configure.";
+  let url;
 
-document.getElementById("matching").textContent="Waiting for playlist data.";
-document.getElementById("missing").textContent="No missing songs yet.";
+  try {
+    url = new URL(/^https?:\/\//i.test(raw) ? raw : "https://" + raw);
+  } catch {
+    output.textContent = "Please enter a valid playlist URL.";
+    return;
+  }
 
-}catch(e){
-output.textContent="Please enter a valid Spotify or YouTube playlist URL.";
-}
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+
+  const isYouTube =
+    host === "youtube.com" ||
+    host.endsWith(".youtube.com") ||
+    host === "youtu.be";
+
+  const isSpotify =
+    host === "spotify.com" ||
+    host.endsWith(".spotify.com") ||
+    host === "spotify.link";
+
+  if (isSpotify) {
+    output.textContent =
+      "Spotify detected. Spotify authorization is the next integration.";
+    return;
+  }
+
+  if (!isYouTube) {
+    output.textContent = "Unsupported playlist link.";
+    return;
+  }
+
+  const playlistId = url.searchParams.get("list");
+
+  if (!playlistId) {
+    output.textContent = "Couldn't find a YouTube playlist ID.";
+    return;
+  }
+
+  if (API_KEY === "PASTE_YOUR_YOUTUBE_API_KEY_HERE") {
+    output.textContent = "Please configure your YouTube API key.";
+    return;
+  }
+
+  output.textContent = "Connecting to YouTube...";
+  summary.textContent = "Retrieving songs...";
+  matching.textContent = "Waiting for playlist import.";
+
+  let tracks = [];
+  let pageToken = "";
+
+  try {
+    while (tracks.length < 100) {
+      const api = new URL(
+        "https://www.googleapis.com/youtube/v3/playlistItems"
+      );
+
+      api.searchParams.set("part", "snippet,contentDetails");
+      api.searchParams.set("playlistId", playlistId);
+      api.searchParams.set("maxResults", "50");
+      api.searchParams.set("key", API_KEY);
+
+      if (pageToken) {
+        api.searchParams.set("pageToken", pageToken);
+      }
+
+      const response = await fetch(api);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error?.message || "YouTube API request failed."
+        );
+      }
+
+      for (const item of data.items || []) {
+        if (tracks.length >= 100) break;
+
+        tracks.push({
+          title: item.snippet.title,
+          artist: item.snippet.videoOwnerChannelTitle ||
+                  item.snippet.channelTitle ||
+                  "Unknown artist",
+          videoId: item.contentDetails.videoId
+        });
+      }
+
+      pageToken = data.nextPageToken || "";
+
+      if (!pageToken) break;
+    }
+
+    summary.textContent =
+      tracks.length + " songs successfully imported from YouTube.";
+
+    tracks.forEach((track, index) => {
+      const item = document.createElement("div");
+      item.className = "track";
+
+      const title = document.createElement("strong");
+      title.textContent = (index + 1) + ". " + track.title;
+
+      const artist = document.createElement("small");
+      artist.textContent = track.artist;
+
+      item.append(title, artist);
+      tracksElement.appendChild(item);
+    });
+
+    output.textContent = "✓ YouTube playlist imported successfully!";
+    matching.textContent =
+      "Playlist imported. Ready for music metadata matching.";
+
+    document.getElementById("missing").textContent =
+      "Missing songs will be identified during audio matching.";
+
+  } catch (error) {
+    output.textContent = "Import failed: " + error.message;
+    summary.textContent = "Playlist could not be imported.";
+  }
 }
 </script>
 </body>
